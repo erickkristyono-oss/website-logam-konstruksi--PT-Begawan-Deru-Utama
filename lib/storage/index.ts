@@ -53,8 +53,14 @@ export async function saveProductImage(file: File, slug: string): Promise<string
       .slice(0, 60) || "produk";
   const name = `${safeSlug}-${randomBytes(4).toString("hex")}.${type}`;
   const dir = path.join(UPLOAD_ROOT, "products");
-  await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, name), buf, { flag: "wx" });
+  try {
+    await mkdir(dir, { recursive: true });
+    await writeFile(path.join(dir, name), buf, { flag: "wx" });
+  } catch (e) {
+    // Mis. UPLOAD_DIR salah / tidak bisa ditulis — tampilkan pesan jelas di form, detail di log server.
+    console.error(`[storage] Gagal menulis foto ke ${dir}:`, e);
+    throw new UploadError("Foto tidak bisa disimpan di server. Periksa pengaturan UPLOAD_DIR di hosting.");
+  }
   return `/uploads/products/${name}`;
 }
 

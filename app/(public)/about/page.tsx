@@ -64,7 +64,9 @@ export default async function AboutPage() {
               {siteConfig.name} bergerak di bidang {siteConfig.businessField.toLowerCase()}, melayani
               kebutuhan material logam untuk konstruksi dan industri.
             </p>
-            <p className="text-neutral-500">COMPANY_PROFILE — deskripsi lengkap perusahaan akan ditambahkan.</p>
+            <p> className="text-neutral-500" Kami memahami bahwa material yang tepat merupakan salah satu faktor penting dalam keberhasilan sebuah proyek.
+              Karena itu, kami berkomitmen untuk menyediakan produk material dengan spesifikasi yang jelas serta memberikan pelayanan yang responsif kepada pelanggan,
+              baik untuk kebutuhan proyek maupun pembelian material secara umum. </p>
           </Reveal>
         </Container>
       </section>
@@ -121,26 +123,26 @@ export default async function AboutPage() {
 
       {/* Material yang disediakan (disembunyikan bila data kategori tidak tersedia) */}
       {categories.length > 0 && (
-      <section aria-labelledby="material-heading" className="bg-white py-20 sm:py-28">
-        <Container>
-          <Reveal>
-            <SectionHeading id="material-heading" eyebrow="Produk" title="Material yang Kami Sediakan" />
-          </Reveal>
-          <ul className="mt-10 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
-            {categories.map((c, i) => (
-              <Reveal as="li" key={c.slug} delay={staggerDelay(i, 3)}>
-                <Link
-                  href={`/products?category=${c.slug}`}
-                  className="group flex items-center justify-between rounded-[16px] border border-neutral-200 px-5 py-4 text-[15px] font-[450] text-neutral-900 transition-colors hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:text-[16px]"
-                >
-                  {c.name}
-                  <ChevronRight className="h-4 w-4 text-neutral-400 group-hover:text-neutral-900" aria-hidden="true" />
-                </Link>
-              </Reveal>
-            ))}
-          </ul>
-        </Container>
-      </section>
+        <section aria-labelledby="material-heading" className="bg-white py-20 sm:py-28">
+          <Container>
+            <Reveal>
+              <SectionHeading id="material-heading" eyebrow="Produk" title="Material yang Kami Sediakan" />
+            </Reveal>
+            <ul className="mt-10 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
+              {categories.map((c, i) => (
+                <Reveal as="li" key={c.slug} delay={staggerDelay(i, 3)}>
+                  <Link
+                    href={`/products?category=${c.slug}`}
+                    className="group flex items-center justify-between rounded-[16px] border border-neutral-200 px-5 py-4 text-[15px] font-[450] text-neutral-900 transition-colors hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink sm:text-[16px]"
+                  >
+                    {c.name}
+                    <ChevronRight className="h-4 w-4 text-neutral-400 group-hover:text-neutral-900" aria-hidden="true" />
+                  </Link>
+                </Reveal>
+              ))}
+            </ul>
+          </Container>
+        </section>
       )}
 
       {/* Visi & misi — placeholder */}
@@ -149,13 +151,17 @@ export default async function AboutPage() {
           <Reveal>
             <Card className="h-full">
               <h2 className="text-[22px] font-[450] text-neutral-950">Visi</h2>
-              <p className="mt-3 text-neutral-500">COMPANY_VISION</p>
+              <p className="mt-3 text-neutral-500">Menjadi perusahaan perdagangan material logam yang terpercaya dan dapat diandalkan dalam memenuhi kebutuhan konstruksi dan industri di Indonesia.</p>
             </Card>
           </Reveal>
           <Reveal delay={120}>
             <Card className="h-full">
               <h2 className="text-[22px] font-[450] text-neutral-950">Misi</h2>
-              <p className="mt-3 text-neutral-500">COMPANY_MISSION</p>
+              <p className="mt-3 text-neutral-500"> Menyediakan berbagai pilihan material logam sesuai kebutuhan pelanggan,
+                Memberikan informasi produk dan spesifikasi secara jelas dan transparan,
+                Memberikan pelayanan yang cepat, responsif, dan profesional,
+                Membangun hubungan jangka panjang dengan pelanggan dan mitra bisnis,
+                Terus meningkatkan kualitas pelayanan dan pengelolaan produk untuk mendukung kebutuhan konstruksi dan industri</p>
             </Card>
           </Reveal>
         </Container>
