@@ -1,0 +1,250 @@
+// Prisma schema — PT Begawan Deru Utama
+// Model ditambahkan bertahap per phase: ContactMessage (2), Category & Product (3), User (4), Cart (5), Order (6).
+// Payment menyusul di Phase 7.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Pesan dari formulir kontak (/contact).
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isRead, createdAt])
+}
+
+/// Kategori produk (mis. Besi, Baja Ringan). Dikelola admin di Phase 8.
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  sortOrder   Int       @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+
+  @@index([isActive, sortOrder])
+}
+
+/// Produk. Harga disimpan dalam Rupiah utuh (Int, tanpa desimal) agar perhitungan pasti tepat.
+model Product {
+  id             String   @id @default(cuid())
+  categoryId     String
+  category       Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  name           String
+  slug           String   @unique
+  description    String
+  price          Int
+  stock          Int      @default(0)
+  unit           String
+  image          String?
+  /// Daftar spesifikasi: [{ "label": "Diameter", "value": "10 mm" }, ...]
+  specifications Json?
+  isActive       Boolean  @default(true)
+  isFeatured     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  cartItems      CartItem[]
+  orderItems     OrderItem[]
+
+  @@index([categoryId])
+  @@index([isActive, isFeatured])
+  @@index([isActive, createdAt])
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+/// Pengguna (customer & admin). Password disimpan sebagai hash scrypt, tidak pernah plain-text.
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  phone        String?
+  passwordHash String
+  role         Role     @default(CUSTOMER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  cart         Cart?
+  orders       Order[]
+  orderLogs    OrderLog[]
+
+  @@index([role, createdAt])
+}
+
+/// Satu keranjang per user. Keranjang TIDAK menyimpan harga — harga selalu dibaca dari Product.
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  cartId    String
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([cartId, productId])
+  @@index([productId])
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  PROCESSING
+  SHIPPED
+  COMPLETED
+  CANCELLED
+}
+
+/// Pesanan. Semua angka dihitung di server. Nilai uang total memakai BigInt (Rupiah utuh)
+/// karena pesanan grosir bisa melebihi batas Int (± Rp 2,1 miliar).
+model Order {
+  id                 String      @id @default(cuid())
+  orderNumber        String      @unique
+  userId             String
+  user               User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  status             OrderStatus @default(PENDING_PAYMENT)
+  subtotal           BigInt
+  shippingCost       BigInt
+  total              BigInt
+  shippingName       String
+  shippingEmail      String
+  shippingPhone      String
+  shippingAddress    String
+  shippingCity       String
+  shippingPostalCode String
+  notes              String?
+  /// Waktu pembayaran dikonfirmasi gateway (webhook / cek status server-ke-server).
+  paidAt             DateTime?
+  /// Alasan pembatalan: "CUSTOMER" | "PAYMENT_EXPIRED" | "ADMIN"
+  cancelReason       String?
+  /// Nomor resi pengiriman (diisi admin saat status Dikirim).
+  trackingNumber     String?
+  /// Catatan internal admin — TIDAK ditampilkan ke pelanggan.
+  adminNote          String?
+  logs               OrderLog[]
+  items              OrderItem[]
+  payments           Payment[]
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+/// Baris pesanan — menyimpan SALINAN nama & harga saat membeli, agar riwayat tidak berubah
+/// walaupun produk diedit atau dihapus kemudian.
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName String
+  productSlug String
+  unit        String
+  unitPrice   Int
+  quantity    Int
+  lineTotal   BigInt
+  createdAt   DateTime @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+
+/// Satu percobaan pembayaran untuk sebuah pesanan. Satu pesanan bisa punya beberapa
+/// percobaan (mis. yang pertama kedaluwarsa), tapi paling banyak SATU yang PENDING.
+model Payment {
+  id                    String        @id @default(cuid())
+  orderId               String
+  order                 Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  /// "midtrans" | "mock"
+  provider              String
+  /// ID yang dikirim ke gateway (order_id Midtrans), mis. BDU-260929-7K3QXM-1
+  reference             String        @unique
+  amount                BigInt
+  status                PaymentStatus @default(PENDING)
+  redirectUrl           String?
+  providerTransactionId String?
+  paymentType           String?
+  /// Status mentah terakhir dari gateway (settlement, pending, expire, ...)
+  providerStatus        String?
+  expiresAt             DateTime
+  paidAt                DateTime?
+  /// Diisi admin setelah dana dikembalikan (refund manual lewat dashboard gateway).
+  refundedAt            DateTime?
+  events                PaymentEvent[]
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  @@index([orderId, createdAt])
+  @@index([status, expiresAt])
+}
+
+/// Log notifikasi/status dari gateway (audit & penelusuran sengketa). Tidak berisi secret.
+model PaymentEvent {
+  id        String   @id @default(cuid())
+  paymentId String?
+  payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  provider  String
+  reference String
+  /// "webhook" | "sync" | "mock"
+  source    String
+  status    String
+  /// true bila notifikasi mengubah data; false bila duplikat / diabaikan
+  applied   Boolean
+  note      String?
+  payload   Json
+  createdAt DateTime @default(now())
+
+  @@index([reference, createdAt])
+}
+
+/// Riwayat tindakan admin pada pesanan (siapa, apa, kapan) — untuk audit.
+model OrderLog {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  /// mis. "STATUS:PROCESSING", "CANCEL", "TRACKING", "NOTE", "REFUNDED"
+  action    String
+  detail    String?
+  createdAt DateTime @default(now())
+
+  @@index([orderId, createdAt])
+}
